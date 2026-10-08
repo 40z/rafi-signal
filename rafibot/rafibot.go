@@ -2,7 +2,6 @@ package rafibot
 
 import (
 	"context"
-	"strings"
 
 	"github.com/robfig/cron/v3"
 )
@@ -14,8 +13,9 @@ type SignalClient interface {
 }
 
 type Message struct {
-	Sender string
-	Body   string
+	Sender   string
+	Body     string
+	Mentions map[string]struct{}
 }
 
 type MessageHandler = func(Message, chan<- string)
@@ -82,7 +82,7 @@ func (s *RafiBot) OnMessage(handler MessageHandler) *RafiBot {
 
 func (s *RafiBot) OnMention(handler MessageHandler) *RafiBot {
 	filteredHandler := func(msg Message, sendChan chan<- string) {
-		if strings.Contains(msg.Body, s.name) {
+		if _, ok := msg.Mentions[s.name]; ok {
 			handler(msg, sendChan)
 		}
 	}
