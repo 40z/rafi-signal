@@ -49,6 +49,8 @@ func (s *RafiBot) Run(ctx context.Context) {
 	s.signalClient.Start(s.messageIn)
 	defer s.signalClient.Stop()
 
+	// asdfa
+
 	// Start scheduler
 	s.scheduler.Start()
 	defer s.scheduler.Stop()
