@@ -86,5 +86,4 @@ go run .
 ### Things to know
 
 - Schedules use six-field cron expressions with seconds first (for example `0 30 9 * * 1-5` for 09:30:00 on weekdays). An invalid expression is silently ignored, so the job will just never run.
-- A panic inside a handler is not recovered and will stop the whole bot.
 - Don't send on the reply channel from a goroutine that outlives the handler call, since the channel is closed on shutdown.

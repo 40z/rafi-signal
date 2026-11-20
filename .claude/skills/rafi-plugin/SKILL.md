@@ -231,8 +231,13 @@ Test mention-gated plugins by passing `Mentions: map[string]struct{}{"+123456789
 - Blocking work (HTTP calls, sleeps) without a timeout. Use `http.Client{Timeout: ...}` or a `context.WithTimeout`, since a stuck goroutine per message accumulates.
 - Goroutines that send on `out` after the handler returns (panic on shutdown).
 - A reply that triggers the plugin again. Whether the Signal client delivers the bot's own messages depends on its implementation, which does not exist yet, so guard plugins that react to arbitrary text.
-- Unrecovered panics (crash the whole bot).
 
 ## Current limits of the project
 
-`main.go` still passes `nil` as the `SignalClient` (marked `TODO: Needs real SignalClient adapter`), so `bot.Run` cannot run end to end yet and will panic on the nil client. Verify plugins with unit tests rather than by running the bot, and do not implement the Signal adapter unless the user asks. If the repo has moved on from what this skill describes (a real client, a different plugin layout, new registration helpers), read the current `main.go` and an existing plugin and follow them over this document.
+`main.go` passes a local socket adapter as the `SignalClient` (marked
+`TODO: Needs real SignalClient adapter`), so `bot.Run` will not actually connect
+to Signal. Verify plugins with unit tests or interactively through a socket
+client like `socat`, and do not implement an alternative `SignalClient` adapter.
+If the repo has moved on from what this skill describes (a real
+client, a different plugin layout, new registration helpers), read the current
+`main.go` and an existing plugin and follow them over this document.
