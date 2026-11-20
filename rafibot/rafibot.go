@@ -2,6 +2,8 @@ package rafibot
 
 import (
 	"context"
+	"log/slog"
+	"runtime/debug"
 
 	"github.com/robfig/cron/v3"
 )
@@ -22,6 +24,7 @@ type MessageHandler = func(Message, chan<- string)
 type ScheduleHandler = func(chan<- string)
 
 type RafiBot struct {
+	logger          *slog.Logger
 	messageOut      chan string
 	messageIn       chan Message
 	messageHandlers []MessageHandler
@@ -30,8 +33,9 @@ type RafiBot struct {
 	name            string
 }
 
-func New(signal SignalClient, name string) RafiBot {
+func New(logger *slog.Logger, signal SignalClient, name string) RafiBot {
 	return RafiBot{
+		logger:       logger,
 		messageOut:   make(chan string, 20),
 		messageIn:    make(chan Message),
 		signalClient: signal,
@@ -70,7 +74,7 @@ func (s *RafiBot) Run(ctx context.Context) {
 	// go routine.
 	for receiveMsg := range s.messageIn {
 		for _, h := range s.messageHandlers {
-			go h(receiveMsg, s.messageOut)
+			go s.runHandler(h, receiveMsg, s.messageOut)
 		}
 	}
 }
@@ -94,4 +98,14 @@ func (s *RafiBot) OnSchedule(cronStr string, handler ScheduleHandler) *RafiBot {
 		handler(s.messageOut)
 	})
 	return s
+}
+
+func (s *RafiBot) runHandler(h MessageHandler, msg Message, sendChan chan<- string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error("Handler panic", "err", r)
+			debug.PrintStack()
+		}
+	}()
+	h(msg, sendChan)
 }

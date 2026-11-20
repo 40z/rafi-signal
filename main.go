@@ -43,7 +43,7 @@ func main() {
 
 	// TODO: Needs real SignalClient adapter
 	signalClient := rafibot.NewSocketSignalClient(logger, cfg.SocketOptions)
-	bot := rafibot.New(&signalClient, cfg.Name)
+	bot := rafibot.New(logger, &signalClient, cfg.Name)
 
 	// Register plugins
 	bot.OnMention(fuckyou.Handler)
