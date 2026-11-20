@@ -48,7 +48,7 @@ Missing files, malformed TOML, and unknown keys are currently ignored without an
 
 1. **Create the package.** Add `plugins/<name>/<name>.go` with `package <name>`.
 2. **Define options (optional).** Export an `Options` struct for anything configurable, using kebab-case `toml` tags. Make the zero value a sensible default.
-3. **Export a `Handler` constructor.** It takes `Options` and returns a `rafibot.MessageHandler` (or a `rafibot.ScheduleHandler` for scheduled plugins). Keep any state inside the returned closure.
+3. **Export a `Handler` function.** If the plugin takes `Options` or stores state the handler should be a method of a `Plugin` struct. If no options or state are needed then the handler can be a single function.
 4. **Register it in `main.go`.** Import the package, add its options to the `Config` struct, and add it to the registration chain with one of:
    - `OnMessage` to see every message
    - `OnMention` to react only when the bot is mentioned

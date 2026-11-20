@@ -5,7 +5,9 @@ description: Build, extend, test, or debug plugins for rafibot, the Go bot frame
 
 # Writing rafibot plugins
 
-rafibot is a small Go framework (`package rafibot`, module `github.com/40z/rafi-signal`). A **plugin is a Go package under `plugins/` that exports a `Handler` constructor**, wired into `main.go` and configured from `config.toml`. There is no plugin interface or dynamic loader: plugins are compiled in and registered in code.
+rafibot is a small Go framework (`package rafibot`, module `github.com/40z/rafi-signal`). A **plugin is a Go package
+under `plugins/` that exports a handler function**, wired into `main.go` and configured from `config.toml`. There is
+no plugin interface or dynamic loader: plugins are compiled in and registered in code.
 
 ## Repo layout
 
@@ -41,14 +43,19 @@ To reply, send a plain string on the `chan<- string` the handler receives. That 
 
 In `main.go` the bot's name is its Signal phone number (`rafibot.New(nil, "+12345678901")`), so `OnMention` matches when `Mentions` contains that exact string.
 
+## Simple plugins
+
+The simplest plugin can just be a single exported function. The convention is to name the handler `Handler`, but that
+is just a convention
+
 ## The plugin convention
 
-Every plugin follows the same shape (see `plugins/fuckyou/fuckyou.go`):
+Every plugin follows a similar shape (see `plugins/fuckyou/fuckyou.go`):
 
 1. `package <name>` in `plugins/<name>/<name>.go`.
 2. An exported `Options` struct holding the plugin's settings, with **kebab-case `toml` tags** (`AllCaps bool \`toml:"all-caps"\``).
-3. An exported `Handler(options Options) rafibot.MessageHandler` constructor (or a `ScheduleHandler` for scheduled plugins) that returns the closure. Config and state live in the closure, not in globals.
-4. If a plugin has no settings, omit `Options` and the config table rather than adding an empty struct.
+3. An exported `Plugin` struct with a constructor that accepts the `Options` object. Config and state live in the plugin instance, not in globals.
+4. If a plugin has no settings or state, omit `Options` and the `Plugin` structs in favor of a single exported handler function.
 
 ## How handlers run (this drives most design decisions)
 
@@ -98,7 +105,7 @@ all-caps = false
 3. **Wire it into `main.go`:**
    - import `github.com/40z/rafi-signal/plugins/<name>`
    - add `<Name>Options <name>.Options \`toml:"<name>"\`` to `Config` (only if the plugin has options)
-   - add it to the chain under `// Register plugins`, e.g. `.OnMention(<name>.Handler(cfg.<Name>Options))` or `.OnSchedule("0 50 9 * * 1-5", <name>.Reminder(cfg.<Name>Options))`
+   - add it to the chain under `// Register plugins`, e.g. `.OnMention(<name>.Handler)` or `.OnSchedule("0 50 9 * * 1-5", <name>.Reminder)`
 4. **Add a `[<name>]` table to `config.toml`** with the defaults.
 5. **Write a unit test** `plugins/<name>/<name>_test.go` (handlers are plain functions; see below).
 6. **Run `go mod tidy`, `go vet ./...`, `go test -race ./...`.** The race detector matters because of the concurrency model. Run `go mod tidy` whenever a plugin adds an import.
@@ -120,60 +127,68 @@ type Options struct {
     Prefix string `toml:"prefix"` // trigger word; empty means "!hi"
 }
 
+type Plugin struct {
+	Options Options
+  mu      sync.Mutex
+}
+
+func NewPlugin(options Options) *Plugin {
+	return &Plugin{
+		Options: options,
+	}
+}
+
 // Handler counts how many times each sender has used the trigger.
-func Handler(options Options) rafibot.MessageHandler {
-    prefix := options.Prefix
+func (s *Plugin) Handler(msg rafibot.Message, out chan<- string) {
+    prefix := s.options.Prefix
     if prefix == "" {
         prefix = "!hi" // zero value must be a sane default
     }
 
-    var mu sync.Mutex
     counts := map[string]int{}
 
-    return func(msg rafibot.Message, out chan<- string) {
-        if !strings.HasPrefix(msg.Body, prefix) {
-            return
-        }
-        mu.Lock()
-        counts[msg.Sender]++
-        n := counts[msg.Sender]
-        mu.Unlock()
-
-        out <- fmt.Sprintf("%s has said hi %d times", msg.Sender, n)
+    if !strings.HasPrefix(msg.Body, prefix) {
+        return
     }
+    s.mu.Lock()
+    counts[msg.Sender]++
+    n := counts[msg.Sender]
+    s.mu.Unlock()
+    out <- fmt.Sprintf("%s has said hi %d times", msg.Sender, n)
 }
 ```
 
-Wiring: `Config` gets `CounterOptions counter.Options \`toml:"counter"\``, the chain gets `.OnMessage(counter.Handler(cfg.CounterOptions))`, and `config.toml` gets:
+**Wiring:**
+
+`Config` gets `CounterOptions counter.Options \`toml:"counter"\``.
+
+Register the plugin with:
+
+```go
+counterPlugin := counter.NewPlugin(cfg.CounterOptions)
+bot.OnMessage(counterPlugin.Handler)
+```
+
+Add configuration to `config.toml`:
 
 ```toml
 [counter]
 prefix = "!hi"
 ```
 
-## Template: scheduled plugin
+## Template: simple scheduled plugin
 
 ```go
 package standup
 
 import "github.com/40z/rafi-signal/rafibot"
 
-type Options struct {
-    Message string `toml:"message"`
-}
-
-func Reminder(options Options) rafibot.ScheduleHandler {
-    msg := options.Message
-    if msg == "" {
-        msg = "Standup in 10 minutes."
-    }
-    return func(out chan<- string) {
-        out <- msg
-    }
+func Reminder(out chan<- string) {
+    out <- "Standup in 10 minutes."
 }
 ```
 
-Register with `.OnSchedule("0 50 9 * * 1-5", standup.Reminder(cfg.StandupOptions))`.
+Register with `.OnSchedule("0 50 9 * * 1-5", standup.Reminder)`.
 
 ## Template: test
 
@@ -187,7 +202,7 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-    h := Handler(Options{}) // zero-value options exercise the defaults
+    h := NewPlugin(Options{}).Handler // zero-value options exercise the defaults
     out := make(chan string, 5) // buffered so the handler never blocks
 
     h(rafibot.Message{Sender: "alice", Body: "!hi"}, out)
