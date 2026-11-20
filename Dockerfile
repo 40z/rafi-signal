@@ -23,4 +23,4 @@ COPY --from=builder /app/rafibot /rafibot
 
 # Run the binary
 USER nonroot:nonroot
-ENTRYPOINT ["/rafibot"]
+ENTRYPOINT ["/rafibot", "-c /config/config.toml"]

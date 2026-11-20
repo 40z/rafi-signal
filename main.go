@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,9 +17,12 @@ type Config struct {
 }
 
 func main() {
+	cfgFlag := flag.String("c", "config.toml", "Path to config file")
+	flag.Parse()
+
 	// Configure options
 	var cfg Config
-	cfgFile, _ := os.ReadFile("config/config.toml")
+	cfgFile, _ := os.ReadFile(*cfgFlag)
 	toml.Unmarshal(cfgFile, &cfg)
 
 	// Setup context for cancelling on ctrl+c
