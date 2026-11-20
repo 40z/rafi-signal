@@ -41,6 +41,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	//ASDFASDF
+
 	// TODO: Needs real SignalClient adapter
 	signalClient := rafibot.NewSocketSignalClient(logger, cfg.SocketOptions)
 	bot := rafibot.New(logger, &signalClient, cfg.Name)
