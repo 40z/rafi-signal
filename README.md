@@ -58,6 +58,31 @@ Missing files, malformed TOML, and unknown keys are currently ignored without an
 
 `plugins/fuckyou` is a minimal working example to copy from.
 
+## Local testing
+
+To test plugins locally you can simulate a simple server/client with a unix
+socket and `socat`. In this configuration you can send messages to rafi and
+see how it responds without connecting to Signal.
+
+Create a local unix socket like this:
+
+```bash
+socat - UNIX-LISTEN:test.sock
+```
+
+Add the following configuration to your `config.toml`:
+
+```toml
+[socket]
+socket = "test.sock"
+````
+
+Then run rafibot in it's local socket configuration:
+
+```bash
+go run .
+```
+
 ### Things to know
 
 - Schedules use six-field cron expressions with seconds first (for example `0 30 9 * * 1-5` for 09:30:00 on weekdays). An invalid expression is silently ignored, so the job will just never run.

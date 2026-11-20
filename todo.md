@@ -1,0 +1,5 @@
+- [x] create a dockerfile
+- [ ] set up github action
+- [x] get running on server
+- [ ] finalize signal adapter
+- [x] create test/debug harness:w

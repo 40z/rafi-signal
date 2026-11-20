@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,12 +14,23 @@ import (
 )
 
 type Config struct {
-	FuckyouOptions fuckyou.Options `toml:"fuckyou"`
+	Name           string                                   `toml:"name"`
+	FuckYouOptions fuckyou.Options                          `toml:"fuckyou"`
+	SocketOptions  rafibot.SocketSignalClientAdapterOptions `toml:"socket"`
 }
 
 func main() {
 	cfgFlag := flag.String("c", "config.toml", "Path to config file")
+	vFlag := flag.Bool("v", false, "Verbose logging")
 	flag.Parse()
+
+	// Configure logging
+	logLevel := slog.LevelInfo
+	if *vFlag {
+		logLevel = slog.LevelDebug
+	}
+	logOpts := slog.HandlerOptions{Level: logLevel}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &logOpts))
 
 	// Configure options
 	var cfg Config
@@ -30,8 +42,8 @@ func main() {
 	defer cancel()
 
 	// TODO: Needs real SignalClient adapter
-	bot := rafibot.New(nil, "+12345678901")
-
+	signalClient := rafibot.NewSocketSignalClient(logger, cfg.SocketOptions)
+	bot := rafibot.New(&signalClient, cfg.Name)
 
 	// Register plugins
 	bot.OnMention(fuckyou.Handler)

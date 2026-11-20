@@ -1,2 +1,7 @@
+name = "+12345678901"
+
+[socket]
+socket = "test.sock"
+
 [fuckyou]
 all-caps = false
